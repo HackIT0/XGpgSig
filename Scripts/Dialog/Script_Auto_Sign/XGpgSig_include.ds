@@ -1,0 +1,74 @@
+//  XGpgSig_include.ds  
+// !! you have to type in your password and Key for Gnu in the XGpgSig.ini file !!
+//  You have to include this script in   
+//  program OnBeforeSavingMessage 
+//               &
+//  program OnBeforeSendingMessage using:
+//  {$I XGpgSig_include.ds}   
+//  Call XGpgSigSign( Message, IsEmail ) as the very last procedure in
+//  OnBeforeSendingMessage.
+//  Call XGpgSigVerify ( Message, IsEmail )  as the very first procedure in  
+//  OnBeforeSavingMessage.
+//  After all this you have to compile & start OnBeforeSavingMessage
+//  & OnBeforeSendingMessage
+//  after typing in your personal data in the two rows below, there is nothing
+//  more do for you in this script, so lay back & enjoy. Allways 'Good Sig :-)'
+Const
+   //--------------------------------------------------------------------------------------
+   DialogHomeDir     = 'E:\Programme\40tude_Dialog\';     // <-- Type in your own Path to 40tude Dialog   
+   XGpgSigHomeDir    = 'E:\Programme\XGpgSig\';           // <-- Type in your own Path to XGpgSig 
+   //---------------------------------------------------------------------------------------
+   // !! No Changes below !!      
+   //---------------------------------------------------------------------------------------
+   DialogTempDir     = DialogHomeDir    + 'Temp\';
+   XGpgSig           = XGpgSigHomeDir   + 'XGpgSig.exe';
+   OrgM              = DialogTempDir    + 'OrgTemp.msg';   
+   SigM              = DialogTempDir    + 'SigTemp.msg'; 
+   ToDoString        = ' -i' +  '"' + OrgM + '"' + ' -o' + '"' + SigM + '"';     
+//---------------------------------XGpgSigCall---------------------------------------------- 
+procedure XGpgSigCall(Message:TStringlist; Mode:String; WS:Integer);
+Begin 
+   Message.Savetofile(OrgM);
+   FileExecute( 0, XGpgSig, 'Open', Mode + ToDoString, XGpgSigHomeDir, 0, WS);
+   Message.Loadfromfile(SigM);
+End;
+//----------------------------------SIGN---------------------------------------------------- 
+   procedure XGpgSigSign ( var   Message : TStringlist;    // <<--You have to call this in
+                           const IsEmail : Boolean);       //     OnBeforeSendingMessage
+                                                           //     to sign your Message          
+  var
+     i         : Integer;
+   begin
+   If IsEmail then Exit;
+   i := 0;
+  repeat                               
+      if pos('X-PGP', Message[i]) = 1 then
+      If Not (pos('X-PGP-RSA-KeyID', Message[i]) = 1) Then 
+        Begin
+          message.delete (i);
+          if (i > 0) then i := i - 1;
+        End;    
+     i := i + 1;
+  until (Message[i] = '');    
+  XGpgSigCall(Message,'sign', 15000);
+  
+end; 
+//-----------------------------End Sign--Start Verify--------------------------------------- 
+procedure XGpgSigVerify (var Message   : TStringlist;         // <<--You have to call this in
+                           const IsEmail : boolean);          //     OnBeforeSavingMessage
+                                                              //     to verify a signature from
+                                                              //     an incoming Message 
+var
+   i       : Integer;
+begin    
+   If IsEmail then Exit;
+   for i := 0 to Message.Count-1 do 
+   begin   
+      if (pos('X-PGP-Sig', Message[i]) = 1) then
+      begin 
+         XGpgSigCall(Message,'verify',95000); 
+         break;
+      end; 
+   end;
+end; 
+
